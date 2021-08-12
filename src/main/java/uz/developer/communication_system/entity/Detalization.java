@@ -23,7 +23,7 @@ public class Detalization {
     private double price;
     @ManyToOne
     private SimCard currentSimCard;
-    private double length;
+    private double amount;
     @ManyToOne
     private SimCard secondSimCard;
     private boolean input;     //kiruvchi

@@ -4,10 +4,12 @@ package uz.developer.communication_system.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import uz.developer.communication_system.entity.*;
+import uz.developer.communication_system.entity.enums.DetalizatsionType;
 import uz.developer.communication_system.entity.enums.PacketType;
 import uz.developer.communication_system.payload.ApiResponse;
 import uz.developer.communication_system.repository.*;
 
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.Optional;
 
@@ -26,11 +28,15 @@ public class ClientService {
     PacketTrafficRepository packetTrafficRepository;
     @Autowired
     CodesCompanyRepository codesCompanyRepository;
+    private final DetalizatsionRepository detalizatsionRepository;
+      @Autowired
+    public ClientService(DetalizatsionRepository detalizatsionRepository) {
+        this.detalizatsionRepository = detalizatsionRepository;
+    }
 
     public ApiResponse getBalance(SimCard simCard) {
         return new ApiResponse("successfully", true, simCard.getBalance());
     }
-
     public ApiResponse changeTariff(Long tariffId, SimCard simCard) {
 
         Optional<Tariff> optionalTariff = tariffRepository.findById(tariffId);
@@ -75,12 +81,10 @@ public class ClientService {
                     new Date(System.currentTimeMillis() + newTariff.getExpireDayMillis()));
             simCard.setBalance(simCard.getBalance() - newTariff.getPriceOfMonth());
         }
-
         tariffTrafficRepository.save(tariffTraffic);
         simCard.setTariff(newTariff);
         simCardRepository.save(simCard);
         return new ApiResponse("tariff ga otish muvaffaqqiyatli yakunlandi", true);
-
 
     }
 
@@ -92,17 +96,13 @@ public class ClientService {
         return new ApiResponse("success", true, optionalTariffTraffic.get());
 
     }
-
     public ApiResponse buyPacket(SimCard simCard, Integer packedId) {
-
         Optional<Packet> optionalPacket = packetRepository.findById(packedId);
         if (optionalPacket.isEmpty())
             return new ApiResponse("not found ", false);
-
         Packet packet = optionalPacket.get();
         if (!(packet.getPrice() < simCard.getBalance()))
             return new ApiResponse("hisobingizda mablag yetarli emas ", false);
-
         Optional<PacketTraffic> optionalPaketTraffic = packetTrafficRepository.findBySimCard_CompanyCodeAndSimCard_Number(
                 simCard.getCompanyCode(), simCard.getNumber());
         PacketTraffic packetTraffic;
@@ -118,12 +118,15 @@ public class ClientService {
         packetTrafficRepository.save(packetTraffic);
         simCard.setBalance(simCard.getBalance() - packet.getPrice());
         simCardRepository.save(simCard);
+        Detalization detalization = new Detalization();
+        detalization.setDetalizatsionType(DetalizatsionType.BUY_PACKET);
+        detalization.setAmount(packet.getAmount());
+        detalization.setPrice(packet.getPrice());
+        detalization.setCurrentSimCard(simCard);
+        detalizatsionRepository.save(detalization);
 
         return new ApiResponse("succesfully", true);
-
-
     }
-
     public ApiResponse getMyPacketTraffic(SimCard simCard, PacketType packetType) {
 
         Optional<PacketTraffic> optionalPacketTraffic =
@@ -133,7 +136,6 @@ public class ClientService {
 
         return new ApiResponse("succes", true, optionalPacketTraffic.get());
     }
-
     public ApiResponse sendSms(SimCard simCard, String receiveCompanyCode, String receiveNumber) {
         if (!(simCard.getBalance() > 0))
             return new ApiResponse("aktiv emassiz", false);
@@ -168,7 +170,6 @@ public class ClientService {
                 }
         }
     }
-
     public ApiResponse call(SimCard simCard, String receiveCompanyCode, String receiveNumber) {
 
         if (!(simCard.getBalance() > 0))
